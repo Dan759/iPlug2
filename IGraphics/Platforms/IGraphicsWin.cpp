@@ -567,7 +567,9 @@ LRESULT CALLBACK IGraphicsWin::WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARA
         {
           ScopedGLContext scopedGLCtx {pGraphics};
           pGraphics->Draw(rects);
+#ifdef IGRAPHICS_GL // only GL has a back buffer to present; on GDI/CPU this stalls the UI for several vblanks
           SwapBuffers((HDC) pGraphics->GetPlatformContext());
+#endif
         }
 
 #if defined IGRAPHICS_GL || IGRAPHICS_D2D
