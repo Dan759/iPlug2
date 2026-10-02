@@ -483,7 +483,20 @@ void IGraphicsSkia::DrawResize()
     void* pixels = bmpInfo->bmiColors;
 
     SkImageInfo info = SkImageInfo::Make(w, h, kN32_SkColorType, kPremul_SkAlphaType, nullptr);
-    mSurface = SkSurfaces::WrapPixels(info, pixels, sizeof(uint32_t) * w);
+    // Tell Skia the screen's subpixel layout when ClearType is on, so text is drawn with
+    // subpixel antialiasing like the rest of Windows (without it Skia falls back to greyscale
+    // antialiasing, which looks blurry at small sizes).
+    SkPixelGeometry geometry = kUnknown_SkPixelGeometry;
+    BOOL smoothing = FALSE;
+    UINT smoothingType = 0, orientation = FE_FONTSMOOTHINGORIENTATIONRGB;
+    if (SystemParametersInfo(SPI_GETFONTSMOOTHING, 0, &smoothing, 0) && smoothing &&
+        SystemParametersInfo(SPI_GETFONTSMOOTHINGTYPE, 0, &smoothingType, 0) && smoothingType == FE_FONTSMOOTHINGCLEARTYPE)
+    {
+      SystemParametersInfo(SPI_GETFONTSMOOTHINGORIENTATION, 0, &orientation, 0);
+      geometry = orientation == FE_FONTSMOOTHINGORIENTATIONBGR ? kBGR_H_SkPixelGeometry : kRGB_H_SkPixelGeometry;
+    }
+    const SkSurfaceProps props(0, geometry);
+    mSurface = SkSurfaces::WrapPixels(info, pixels, sizeof(uint32_t) * w, &props);
   #else
     SkImageInfo info = SkImageInfo::MakeN32Premul(w, h);
     mSurface = SkSurfaces::Raster(info);
