@@ -234,6 +234,12 @@ void IGraphics::SetControlBounds(IControl* pControl, const IRECT& r)
     SetAllControlsDirty();
 }
 
+void IGraphics::OnTextEntryChanged(const char* str)
+{
+  if (mInTextEntry)
+    mInTextEntry->OnTextEntryChanged(str, mTextEntryValIdx);
+}
+
 void IGraphics::SetControlValueAfterTextEdit(const char* str)
 {
   if (!mInTextEntry)

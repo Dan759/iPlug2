@@ -745,7 +745,16 @@ LRESULT CALLBACK IGraphicsWin::ParamEditProc(HWND hWnd, UINT msg, WPARAM wParam,
         break;  // Else let the default proc handle it.
       }
     }
-    return CallWindowProcW(pGraphics->mDefEditProc, hWnd, msg, wParam, lParam);
+    const LRESULT result = CallWindowProcW(pGraphics->mDefEditProc, hWnd, msg, wParam, lParam);
+    // After every edit, report the current text (IControl::OnTextEntryChanged), e.g. for a live search.
+    if (pGraphics->mParamEditWnd == hWnd &&
+        (msg == WM_CHAR || msg == WM_PASTE || msg == WM_CUT || msg == WM_CLEAR || msg == WM_UNDO || (msg == WM_KEYDOWN && wParam == VK_DELETE)))
+    {
+      WCHAR strWide[MAX_WIN32_PARAM_LEN];
+      SendMessageW(hWnd, WM_GETTEXT, MAX_WIN32_PARAM_LEN, (LPARAM) strWide);
+      pGraphics->OnTextEntryChanged(UTF16AsUTF8(strWide).Get());
+    }
+    return result;
   }
   return DefWindowProcW(hWnd, msg, wParam, lParam);
 }

@@ -185,6 +185,12 @@ public:
    * @param valIdx An index that indicates which of the control's values the text completion relates to */
   virtual void OnTextEntryCompletion(const char* str, int valIdx) {}
 
+  /** Implement this method to follow the text while it is typed in a text entry (e.g. a live search).
+   * Called after every edit on platforms that support it (Windows); OnTextEntryCompletion still follows.
+   * @param str A CString with the current text
+   * @param valIdx An index that indicates which of the control's values the text entry relates to */
+  virtual void OnTextEntryChanged(const char* str, int valIdx) {}
+
   /** Implement this to respond to a menu selection from CreateContextMenu(); @see CreateContextMenu() */
   virtual void OnContextSelection(int itemSelected) {}
 
