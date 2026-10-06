@@ -245,10 +245,11 @@ SkPaint SkiaPaint(const IPattern& pattern, const IBlend* pBlend)
       SkPoint::Make(x2, y2)
     };
     
-    SkColor colors[8];
-    SkScalar positions[8];
+    // As many stops as an IPattern holds (IPattern::mStops); 8 overflowed the stack.
+    SkColor colors[16];
+    SkScalar positions[16];
       
-    assert(numStops <= 8);
+    assert(numStops <= 16);
     
     for(int i = 0; i < numStops; i++)
     {
