@@ -123,6 +123,12 @@ public:
   /** @return \c true if the plugin is currently bypassed */
   bool GetBypassed() const { return mBypassed; }
 
+  /** Override to return \c true if the plug-in handles the host's bypass itself: ProcessBlock() keeps
+   * being called while bypassed and the plug-in reads GetBypassed() (e.g. to crossfade to its dry signal,
+   * delayed by its latency, with its internal state kept). Otherwise the API class passes the input
+   * through, delayed by the latency, and ProcessBlock() is not called (VST3 only so far). */
+  virtual bool HandlesBypass() const { return false; }
+
   /** @return \c true if the plugin is currently rendering off-line */
   bool GetRenderingOffline() const { return mRenderingOffline; };
 
