@@ -1661,6 +1661,13 @@ public:
    * @param x The X coordinate at which to popup the context menu
    * @param y The Y coordinate at which to popup the context menu */
   void PopupHostContextMenuForParam(IControl* pControl, int paramIdx, float x, float y);
+
+  /** A right click on a control bound to a parameter: return true when the plug-in handled it (its own
+   * menu, which may still call PopupHostContextMenuForParam), false to open the host's menu as before. */
+  using ParamContextMenuFunc = std::function<bool(IControl* pControl, int paramIdx, float x, float y)>;
+
+  /** Sets the handler for right clicks on parameter controls (nullptr: the host's menu, the default). */
+  void SetParamContextMenuFunc(ParamContextMenuFunc func) { mParamContextMenuFunc = func; }
   
 #pragma mark - Resource/File Loading
   
@@ -1861,6 +1868,7 @@ private:
   bool mIsContextMenu = false;
   int mTextEntryValIdx = kNoValIdx;
   int mPopupMenuValIdx = kNoValIdx;
+  ParamContextMenuFunc mParamContextMenuFunc;
   int mMouseOverIdx = -1;
   float mMouseDownX = -1.f;
   float mMouseDownY = -1.f;
