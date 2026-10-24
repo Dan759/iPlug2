@@ -31,9 +31,9 @@ mkdir %BundleDir%\Contents\Resources
 
 echo Set Folder Icon
 
-IF EXIST %BundleDir%\PlugIn.ico GOTO ICON_EXISTS
+REM Always copied, so a changed icon reaches a bundle that already exists
+IF EXIST %BundleDir%\PlugIn.ico attrib -h -r -s %BundleDir%\PlugIn.ico
 copy /Y %IconSource% %BundleDir%\PlugIn.ico > NUL
-:ICON_EXISTS
 
 IF EXIST %BundleDir%\desktop.ini attrib -h -r -s %BundleDir%\desktop.ini
 
