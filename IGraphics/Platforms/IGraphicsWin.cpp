@@ -662,6 +662,10 @@ LRESULT CALLBACK IGraphicsWin::ParamEditProc(HWND hWnd, UINT msg, WPARAM wParam,
     {
       case WM_CHAR:
       {
+        // Return and Escape are handled on WM_KEYDOWN; their characters reaching a single-line edit make it beep
+        if (wParam == VK_RETURN || wParam == VK_ESCAPE || wParam == '\n')
+          return 0;
+
         // limit to numbers for text entry on appropriate parameters
         if (pGraphics->mEditParam)
         {
