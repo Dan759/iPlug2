@@ -153,6 +153,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdPa
 
     IPlugAPPHost* pAppHost = IPlugAPPHost::Create();
 
+#if defined(APP_NO_IO) && APP_NO_IO
+    pAppHost->SetNoIO(true); // config.h: an app without audio or MIDI, as --no-io
+#endif
+
     // Parse command line arguments
     if (lpszCmdParam && lpszCmdParam[0])
     {
@@ -335,7 +339,11 @@ extern "C" bool SaveWindowScreenshot(void* hwnd, const char* path)
 extern HMENU SWELL_app_stocksysmenu;
 
 static WDL_String gScreenshotPath;
+#if defined(APP_NO_IO) && APP_NO_IO
+static bool gNoIO = true; // config.h: an app without audio or MIDI
+#else
 static bool gNoIO = false;
+#endif
 
 int main(int argc, char *argv[])
 {
