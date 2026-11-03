@@ -105,17 +105,21 @@ void IGraphics::Resize(int w, int h, float scale, bool needsPlatformResize)
   if (mCornerResizer)
     mCornerResizer->OnRescale();
 
+  // The new surface and layout first, then the windows, then PostResize draws at once (Windows): during a drag the
+  // paint never waits behind the mouse messages, so no frame shows the host's background or a stale layout.
+  DrawResize();
+  ForAllControls(&IControl::OnResize);
+
+  if(mLayoutOnResize)
+    GetDelegate()->LayoutUI(this);
+
+  SetAllControlsDirty();
+
   int windowWidth = WindowWidth() * GetPlatformWindowScale();
   int windowHeight = WindowHeight() * GetPlatformWindowScale();
 
   bool parentResized = GetDelegate()->EditorResizeFromUI(windowWidth, windowHeight, needsPlatformResize);
   PlatformResize(parentResized);
-  ForAllControls(&IControl::OnResize);
-  SetAllControlsDirty();
-  DrawResize();
-  
-  if(mLayoutOnResize)
-    GetDelegate()->LayoutUI(this);
 
   PostResize();
 }

@@ -38,6 +38,7 @@ public:
   float GetPlatformWindowScale() const override { return GetScreenScale(); }
 
   void PlatformResize(bool parentHasResized) override;
+  void PostResize() override;
 
   void CheckTabletInput(UINT msg);
   void DestroyEditWindow();

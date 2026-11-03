@@ -857,6 +857,14 @@ void IGraphicsWin::PlatformResize(bool parentHasResized)
   }
 }
 
+// Drawn now, not at the next WM_PAINT: while the mouse drags the corner, input messages come first and a pending
+// paint would wait, showing the new size empty or the old layout for several frames.
+void IGraphicsWin::PostResize()
+{
+  if (WindowIsOpen())
+    RedrawWindow(mPlugWnd, nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW | RDW_NOERASE);
+}
+
 void IGraphicsWin::HideMouseCursor(bool hide, bool lock)
 {
   if (mCursorHidden == hide)
