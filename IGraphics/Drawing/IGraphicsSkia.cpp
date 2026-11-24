@@ -972,7 +972,11 @@ APIBitmap* IGraphicsSkia::CreateAPIBitmap(int width, int height, float scale, do
   }
   else
   {
-    surface = SkSurfaces::RenderTarget(mGrContext.get(), skgpu::Budgeted::kYes, info);
+    // StartLayer's msaaSamples, capped at what the GPU has for this colour type (1: none).
+    const int samples = mLayerMSAASamples > 1 ? std::min(mLayerMSAASamples, mGrContext->maxSurfaceSampleCountForColorType(info.colorType())) : 0;
+    surface = SkSurfaces::RenderTarget(mGrContext.get(), skgpu::Budgeted::kYes, info, samples > 1 ? samples : 0, nullptr);
+    if (!surface && samples > 1) // not available after all: a plain layer
+      surface = SkSurfaces::RenderTarget(mGrContext.get(), skgpu::Budgeted::kYes, info);
   }
   #else
   surface = SkSurfaces::Raster(info);

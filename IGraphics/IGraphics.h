@@ -524,8 +524,13 @@ public:
   /** Create an IGraphics layer. Switches drawing to an offscreen bitmap for drawing
    * IControl* pOwner The control that owns the layer
    * @param r The bounds of the layer within the IGraphics context
-   * @param cacheable Used to make sure the underlying bitmap can be shared between plug-in instances */
-  void StartLayer(IControl* pOwner, const IRECT& r, bool cacheable = false);
+   * @param cacheable Used to make sure the underlying bitmap can be shared between plug-in instances. On a GPU backend
+   * (Skia GL / Metal) that makes it a CPU bitmap (GPU textures belong to one window's context): everything drawn into it
+   * is drawn on the CPU. To keep a layer between frames, hold its ILayerPtr; leave cacheable false.
+   * @param msaaSamples Skia GPU only: draw the layer with this many MSAA samples (0: none; capped at what the GPU has).
+   * Skia rasterises long antialiased paths on the CPU, by area; in an MSAA layer the GPU draws them. It costs fill rate
+   * (blurs and copies of that layer get dearer): ask for it only in layers full of paths. Ignored by other backends. */
+  void StartLayer(IControl* pOwner, const IRECT& r, bool cacheable = false, int msaaSamples = 0);
   
   /** If a layer already exists, continue drawing to it
    * @param layer the layer to resume */
@@ -1905,6 +1910,7 @@ protected:
   friend class ITextEntryControl;
   
   std::stack<ILayer*> mLayers;
+  int mLayerMSAASamples = 0; // StartLayer's msaaSamples, read by CreateAPIBitmap while the layer is made
 
   IRECT mClipRECT;
   IMatrix mTransform;

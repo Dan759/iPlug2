@@ -2005,14 +2005,17 @@ void IGraphics::EndDragResize()
     mCornerResizer->SetDirty(false);
 }
 
-void IGraphics::StartLayer(IControl* pControl, const IRECT& r, bool cacheable)
+void IGraphics::StartLayer(IControl* pControl, const IRECT& r, bool cacheable, int msaaSamples)
 {
   auto pixelBackingScale = GetBackingPixelScale();
   IRECT alignedBounds = r.GetPixelAligned(pixelBackingScale);
   const int w = static_cast<int>(std::ceil(pixelBackingScale * std::ceil(alignedBounds.W())));
   const int h = static_cast<int>(std::ceil(pixelBackingScale * std::ceil(alignedBounds.H())));
 
-  PushLayer(new ILayer(CreateAPIBitmap(w, h, GetScreenScale(), GetDrawScale(), cacheable), alignedBounds, pControl, pControl ? pControl->GetRECT() : IRECT()));
+  mLayerMSAASamples = msaaSamples;
+  APIBitmap* pBitmap = CreateAPIBitmap(w, h, GetScreenScale(), GetDrawScale(), cacheable);
+  mLayerMSAASamples = 0;
+  PushLayer(new ILayer(pBitmap, alignedBounds, pControl, pControl ? pControl->GetRECT() : IRECT()));
 }
 
 void IGraphics::ResumeLayer(ILayerPtr& layer)
