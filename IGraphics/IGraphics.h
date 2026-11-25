@@ -1226,6 +1226,15 @@ public:
  * @param func The function to call */
   void SetDisplayTickFunc(IDisplayTickFunc func) { mDisplayTickFunc = func; }
 
+  /** The most frames a second every editor of this binary draws (0: every display frame). A cap takes whole display
+   * frames: 60 on a 144 Hz screen draws every second one (72), on 120 Hz every second (60), on 60 Hz every one.
+   * Windows only for now. */
+  static void SetMaxFrameRate(double fps) { MaxFrameRate() = fps > 0.0 ? fps : 0.0; }
+  static double GetMaxFrameRate() { return MaxFrameRate(); }
+private:
+  static double& MaxFrameRate() { static double sFps = 0.0; return sFps; }
+public:
+
   /** Sets a function that is called when the OS appearance (light/dark mode) is changed
  * @param func The function to call */
   void SetUIAppearanceChangedFunc(IUIAppearanceChangedFunc func) { mAppearanceChangedFunc = func; }

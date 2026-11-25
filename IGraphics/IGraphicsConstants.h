@@ -187,7 +187,9 @@ enum class ECursor
   INO,
   HAND,
   APPSTARTING,
-  HELP
+  HELP,
+  GRAB,    // an open hand: what can be dragged around (a view to turn or pan)
+  GRABBING // the closed hand while it is dragged
 };
 
 /** Touch event states for multi-touch handling */

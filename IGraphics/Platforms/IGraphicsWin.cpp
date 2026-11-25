@@ -164,6 +164,19 @@ void IGraphicsWin::OnDisplayTimer(int vBlankCount)
       SetScreenScale(scale);
   }
 
+  // A frame-rate cap (SetMaxFrameRate) skips whole display frames: a frame draws once a cap's period has nearly passed
+  // (4 ms early, so a 144 Hz screen draws every second vblank for 60, never every third).
+  if (const double cap = GetMaxFrameRate(); cap > 0.0)
+  {
+    LARGE_INTEGER now, frequency;
+    QueryPerformanceCounter(&now);
+    QueryPerformanceFrequency(&frequency);
+    const double seconds = static_cast<double>(now.QuadPart) / static_cast<double>(frequency.QuadPart);
+    if (seconds - mLastFrameSeconds < 1.0 / cap - 0.004)
+      return;
+    mLastFrameSeconds = seconds;
+  }
+
   // TODO: this is far too aggressive for slow drawing animations and data changing.  We need to
   // gate the rate of updates to a certain percentage of the wall clock time.
   IRECTList rects;
@@ -913,6 +926,91 @@ void IGraphicsWin::MoveMouseCursor(float x, float y)
   }
 }
 
+// Windows has no open / closed hand: drawn here from 16 x 16 pixel art (B outline, W fill), scaled to the system's
+// cursor size, made once.
+static HCURSOR MakePixelCursor(const char* const rows[16])
+{
+  const int size = std::max(16, GetSystemMetrics(SM_CXCURSOR));
+  const int scale = std::max(1, size / 16);
+  BITMAPV5HEADER bi = {};
+  bi.bV5Size = sizeof(bi);
+  bi.bV5Width = size;
+  bi.bV5Height = -size; // top-down
+  bi.bV5Planes = 1;
+  bi.bV5BitCount = 32;
+  bi.bV5Compression = BI_BITFIELDS;
+  bi.bV5RedMask = 0x00FF0000;
+  bi.bV5GreenMask = 0x0000FF00;
+  bi.bV5BlueMask = 0x000000FF;
+  bi.bV5AlphaMask = 0xFF000000;
+  void* pBits = nullptr;
+  HDC dc = GetDC(NULL);
+  HBITMAP color = CreateDIBSection(dc, (BITMAPINFO*) &bi, DIB_RGB_COLORS, &pBits, NULL, 0);
+  ReleaseDC(NULL, dc);
+  if (!color || !pBits)
+    return LoadCursor(NULL, IDC_HAND);
+  auto* pPixels = static_cast<uint32_t*>(pBits);
+  for (int y = 0; y < size; ++y)
+    for (int x = 0; x < size; ++x)
+    {
+      const int px = x / scale, py = y / scale;
+      const char c = px < 16 && py < 16 ? rows[py][px] : '.';
+      pPixels[y * size + x] = c == 'B' ? 0xFF000000 : c == 'W' ? 0xFFFFFFFF : 0x00000000;
+    }
+  HBITMAP mask = CreateBitmap(size, size, 1, 1, NULL);
+  ICONINFO info = {};
+  info.fIcon = FALSE;
+  info.xHotspot = 8 * scale;
+  info.yHotspot = 8 * scale;
+  info.hbmMask = mask;
+  info.hbmColor = color;
+  HCURSOR cursor = (HCURSOR) CreateIconIndirect(&info);
+  DeleteObject(color);
+  DeleteObject(mask);
+  return cursor ? cursor : LoadCursor(NULL, IDC_HAND);
+}
+
+static HCURSOR GrabCursor(bool closed)
+{
+  static const char* const kOpen[16] = {
+    ".......BB.......",
+    "...BB.BWWBBB....",
+    "..BWWBBWWBWWB...",
+    "..BWWBBWWBWWB.B.",
+    "...BWWBWWBWWBBWB",
+    "...BWWBWWBWWBWWB",
+    ".BB.BWWWWWWWBWWB",
+    "BWWBBWWWWWWWWWWB",
+    "BWWWBWWWWWWWWWB.",
+    ".BWWWWWWWWWWWWB.",
+    "..BWWWWWWWWWWWB.",
+    "..BWWWWWWWWWWB..",
+    "...BWWWWWWWWWB..",
+    "....BWWWWWWWB...",
+    ".....BWWWWWWB...",
+    ".....BWWWWWWB..."};
+  static const char* const kClosed[16] = {
+    "................",
+    "................",
+    "................",
+    "....BB.BB.BB....",
+    "...BWWBWWBWWBB..",
+    "...BWWWWWWWWBWB.",
+    "....BWWWWWWWWWB.",
+    "...BBWWWWWWWWWB.",
+    "..BWWWWWWWWWWWB.",
+    "..BWWWWWWWWWWWB.",
+    "...BWWWWWWWWWB..",
+    "....BWWWWWWWWB..",
+    ".....BWWWWWWB...",
+    ".....BWWWWWWB...",
+    "................",
+    "................"};
+  static HCURSOR sOpen = MakePixelCursor(kOpen);
+  static HCURSOR sClosed = MakePixelCursor(kClosed);
+  return closed ? sClosed : sOpen;
+}
+
 ECursor IGraphicsWin::SetMouseCursor(ECursor cursorType)
 {
   HCURSOR cursor;
@@ -933,6 +1031,8 @@ ECursor IGraphicsWin::SetMouseCursor(ECursor cursorType)
     case ECursor::HAND:             cursor = LoadCursor(NULL, IDC_HAND);            break;
     case ECursor::APPSTARTING:      cursor = LoadCursor(NULL, IDC_APPSTARTING);     break;
     case ECursor::HELP:             cursor = LoadCursor(NULL, IDC_HELP);            break;
+    case ECursor::GRAB:             cursor = GrabCursor(false);                     break;
+    case ECursor::GRABBING:         cursor = GrabCursor(true);                      break;
     default:
       cursor = LoadCursor(NULL, IDC_ARROW);
   }
@@ -1031,7 +1131,8 @@ void IGraphicsWin::ActivateGLContext()
   mStartHDC = wglGetCurrentDC();
   mStartHGLRC = wglGetCurrentContext();
   HDC dc = GetDC(mPlugWnd);
-  wglMakeCurrent(dc, mHGLRC);
+  if (mStartHGLRC != mHGLRC || mStartHDC != dc)
+    wglMakeCurrent(dc, mHGLRC);
 #endif
 }
 
@@ -1039,7 +1140,10 @@ void IGraphicsWin::DeactivateGLContext()
 {
 #ifdef IGRAPHICS_GL
   ReleaseDC(mPlugWnd, (HDC) GetPlatformContext());
-  wglMakeCurrent(mStartHDC, mStartHGLRC); // return current ctxt to start
+  // With no context current before, ours stays current (CS_OWNDC: the window's own DC): unbinding it every frame
+  // makes a threaded driver flush and sync (AMD, 144 Hz: Matrix 110 -> 70 % CPU, 2026-11-24)
+  if (mStartHGLRC && (mStartHGLRC != mHGLRC || mStartHDC != wglGetCurrentDC()))
+    wglMakeCurrent(mStartHDC, mStartHGLRC); // return current ctxt to start
 #endif
 }
 
