@@ -1743,7 +1743,8 @@ bool IGraphicsWin::OpenURL(const char* url, const char* msgWindowTitle, const ch
     return false;
   }
   DWORD inetStatus = 0;
-  if (InternetGetConnectedState(&inetStatus, 0))
+  const bool localFile = strncmp(url, "file:", 5) == 0 || !strstr(url, "://"); // a local file or path opens offline
+  if (localFile || InternetGetConnectedState(&inetStatus, 0))
   {
     if (ShellExecuteW(mPlugWnd, L"open", UTF8AsUTF16(url).Get(), 0, 0, SW_SHOWNORMAL) > HINSTANCE(32))
     {
