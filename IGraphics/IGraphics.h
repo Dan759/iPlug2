@@ -566,6 +566,12 @@ public:
   * @param shadow - the shadow to add */
   virtual void ApplyLayerDropShadow(ILayerPtr& layer, const IShadow& shadow);
 
+  /** Turns a layer into the light it projects (a CSS-style bloom): its contents over black, through brightness then
+   * contrast (each colour channel v -> (v * brightness - 0.5) * contrast + 0.5, clamped), then blurred (blurSize as an
+   * IShadow's: sigma = blurSize / 3). Only the bright parts survive, in their own colours; draw the result with an
+   * additive blend. @return false when the backend cannot (the layer is left as it was) */
+  virtual bool ApplyLayerBloom(ILayerPtr& layer, float brightness, float contrast, float blurSize) { return false; }
+
   /** Get the contents of a layer as Raw RGBA bitmap data
    * NOTE: you should only call this within IControl::Draw()
    * @param layer The layer to get the data from

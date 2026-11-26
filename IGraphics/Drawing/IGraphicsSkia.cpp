@@ -18,6 +18,7 @@
 #include "include/effects/SkDashPathEffect.h"
 #include "include/effects/SkGradientShader.h"
 #include "include/effects/SkImageFilters.h"
+#include "include/core/SkColorFilter.h"
 
 #if !defined IGRAPHICS_NO_SKIA_SKPARAGRAPH
 #include "modules/skparagraph/include/FontCollection.h"
@@ -1044,6 +1045,37 @@ void IGraphicsSkia::ApplyLayerDropShadow(ILayerPtr& layer, const IShadow& shadow
   {
     IGraphics::ApplyLayerDropShadow(layer, shadow);
   }
+}
+
+bool IGraphicsSkia::ApplyLayerBloom(ILayerPtr& layer, float brightness, float contrast, float blurSize)
+{
+  sk_sp<SkSurface> surface = layer->GetAPIBitmap()->GetBitmap()->mSurface;
+  if (!surface)
+    return false;
+  SkCanvas* pCanvas = surface->getCanvas();
+  SkMatrix m;
+  m.reset();
+  pCanvas->setMatrix(m);
+
+  // The contents over black (what a screen shows), then the colour filter and the blur in one draw.
+  sk_sp<SkImage> contents = surface->makeImageSnapshot();
+  pCanvas->clear(SK_ColorBLACK);
+  pCanvas->drawImage(contents.get(), 0.0, 0.0);
+  sk_sp<SkImage> flat = surface->makeImageSnapshot();
+
+  const float a = brightness * contrast, t = 0.5f * (1.f - contrast);
+  const float matrix[20] = {a, 0.f, 0.f, 0.f, t,
+                            0.f, a, 0.f, 0.f, t,
+                            0.f, 0.f, a, 0.f, t,
+                            0.f, 0.f, 0.f, 1.f, 0.f};
+  const float sigma = blurSize * layer->GetAPIBitmap()->GetScale() / 3.f;
+  SkPaint p;
+  p.setColorFilter(SkColorFilters::Matrix(matrix));
+  if (sigma > 0.f)
+    p.setImageFilter(SkImageFilters::Blur(sigma, sigma, nullptr));
+  pCanvas->clear(SK_ColorTRANSPARENT);
+  pCanvas->drawImage(flat.get(), 0.0, 0.0, SkSamplingOptions(), &p);
+  return true;
 }
 
 void IGraphicsSkia::GetLayerBitmapData(const ILayerPtr& layer, RawBitmapData& data)

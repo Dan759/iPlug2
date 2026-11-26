@@ -17,6 +17,7 @@
 #include "IPlugParameter.h"
 #include "IGraphicsWin.h"
 #include "IGraphicsWin_dnd.h"
+#include "IGraphicsWin_GrabCursors.h"
 #include "IPopupMenuControl.h"
 #include "IPlugPaths.h"
 
@@ -926,88 +927,15 @@ void IGraphicsWin::MoveMouseCursor(float x, float y)
   }
 }
 
-// Windows has no open / closed hand: drawn here from 16 x 16 pixel art (B outline, W fill), scaled to the system's
-// cursor size, made once.
-static HCURSOR MakePixelCursor(const char* const rows[16])
-{
-  const int size = std::max(16, GetSystemMetrics(SM_CXCURSOR));
-  const int scale = std::max(1, size / 16);
-  BITMAPV5HEADER bi = {};
-  bi.bV5Size = sizeof(bi);
-  bi.bV5Width = size;
-  bi.bV5Height = -size; // top-down
-  bi.bV5Planes = 1;
-  bi.bV5BitCount = 32;
-  bi.bV5Compression = BI_BITFIELDS;
-  bi.bV5RedMask = 0x00FF0000;
-  bi.bV5GreenMask = 0x0000FF00;
-  bi.bV5BlueMask = 0x000000FF;
-  bi.bV5AlphaMask = 0xFF000000;
-  void* pBits = nullptr;
-  HDC dc = GetDC(NULL);
-  HBITMAP color = CreateDIBSection(dc, (BITMAPINFO*) &bi, DIB_RGB_COLORS, &pBits, NULL, 0);
-  ReleaseDC(NULL, dc);
-  if (!color || !pBits)
-    return LoadCursor(NULL, IDC_HAND);
-  auto* pPixels = static_cast<uint32_t*>(pBits);
-  for (int y = 0; y < size; ++y)
-    for (int x = 0; x < size; ++x)
-    {
-      const int px = x / scale, py = y / scale;
-      const char c = px < 16 && py < 16 ? rows[py][px] : '.';
-      pPixels[y * size + x] = c == 'B' ? 0xFF000000 : c == 'W' ? 0xFFFFFFFF : 0x00000000;
-    }
-  HBITMAP mask = CreateBitmap(size, size, 1, 1, NULL);
-  ICONINFO info = {};
-  info.fIcon = FALSE;
-  info.xHotspot = 8 * scale;
-  info.yHotspot = 8 * scale;
-  info.hbmMask = mask;
-  info.hbmColor = color;
-  HCURSOR cursor = (HCURSOR) CreateIconIndirect(&info);
-  DeleteObject(color);
-  DeleteObject(mask);
-  return cursor ? cursor : LoadCursor(NULL, IDC_HAND);
-}
-
+// Chromium's grab hands (IGraphicsWin_GrabCursors.h), made once; the system's hand if Windows refuses one.
 static HCURSOR GrabCursor(bool closed)
 {
-  static const char* const kOpen[16] = {
-    ".......BB.......",
-    "...BB.BWWBBB....",
-    "..BWWBBWWBWWB...",
-    "..BWWBBWWBWWB.B.",
-    "...BWWBWWBWWBBWB",
-    "...BWWBWWBWWBWWB",
-    ".BB.BWWWWWWWBWWB",
-    "BWWBBWWWWWWWWWWB",
-    "BWWWBWWWWWWWWWB.",
-    ".BWWWWWWWWWWWWB.",
-    "..BWWWWWWWWWWWB.",
-    "..BWWWWWWWWWWB..",
-    "...BWWWWWWWWWB..",
-    "....BWWWWWWWB...",
-    ".....BWWWWWWB...",
-    ".....BWWWWWWB..."};
-  static const char* const kClosed[16] = {
-    "................",
-    "................",
-    "................",
-    "....BB.BB.BB....",
-    "...BWWBWWBWWBB..",
-    "...BWWWWWWWWBWB.",
-    "....BWWWWWWWWWB.",
-    "...BBWWWWWWWWWB.",
-    "..BWWWWWWWWWWWB.",
-    "..BWWWWWWWWWWWB.",
-    "...BWWWWWWWWWB..",
-    "....BWWWWWWWWB..",
-    ".....BWWWWWWB...",
-    ".....BWWWWWWB...",
-    "................",
-    "................"};
-  static HCURSOR sOpen = MakePixelCursor(kOpen);
-  static HCURSOR sClosed = MakePixelCursor(kClosed);
+  const auto make = [](const unsigned char* pData, size_t size) {
+    HCURSOR cursor = (HCURSOR) CreateIconFromResourceEx(const_cast<PBYTE>(pData), (DWORD) size, FALSE, 0x00030000, 0, 0, LR_DEFAULTCOLOR);
+    return cursor ? cursor : LoadCursor(NULL, IDC_HAND);
+  };
+  static HCURSOR sOpen = make(kChromiumHandGrab, sizeof(kChromiumHandGrab));
+  static HCURSOR sClosed = make(kChromiumHandGrabbing, sizeof(kChromiumHandGrabbing));
   return closed ? sClosed : sOpen;
 }
 

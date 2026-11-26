@@ -123,6 +123,7 @@ public:
   APIBitmap* CreateAPIBitmap(int width, int height, float scale, double drawScale, bool cacheable = false) override;
 
   void ApplyLayerDropShadow(ILayerPtr& layer, const IShadow& shadow) override;
+  bool ApplyLayerBloom(ILayerPtr& layer, float brightness, float contrast, float blurSize) override;
   void GetLayerBitmapData(const ILayerPtr& layer, RawBitmapData& data) override;
   void ApplyShadowMask(ILayerPtr& layer, RawBitmapData& mask, const IShadow& shadow) override;
 
